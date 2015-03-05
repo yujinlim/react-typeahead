@@ -6,6 +6,7 @@ var React = window.React || require('react/addons');
 var TypeaheadSelector = require('./selector');
 var KeyEvent = require('../keyevent');
 var fuzzy = require('fuzzy');
+var partialRight = require('lodash.partialright');
 
 /**
  * A "typeahead", an auto-completing text input
@@ -21,7 +22,8 @@ var Typeahead = React.createClass({
     defaultValue: React.PropTypes.string,
     placeholder: React.PropTypes.string,
     onOptionSelected: React.PropTypes.func,
-    onKeyDown: React.PropTypes.func
+    onKeyDown: React.PropTypes.func,
+    getOptionsForValue: React.PropTypes.func
   },
 
   getDefaultProps: function() {
@@ -36,12 +38,17 @@ var Typeahead = React.createClass({
   },
 
   getInitialState: function() {
+    this.getOptionsForValue = this._getOptionsForValue;
+
+    if (this.props.getOptionsForValue) {
+      this.getOptionsForValue = partialRight(this.props.getOptionsForValue.bind(this), this._parseValues);
+    }
+
+    this.getOptionsForValue(this.props.defaultValue, this.props.options);
+
     return {
       // The set of all options... Does this need to be state?  I guess for lazy load...
       options: this.props.options,
-
-      // The currently visible set of options
-      visible: this.getOptionsForValue(this.props.defaultValue, this.props.options),
 
       // This should be called something else, "entryValue"
       entryValue: this.props.defaultValue,
@@ -51,15 +58,22 @@ var Typeahead = React.createClass({
     };
   },
 
-  getOptionsForValue: function(value, options) {
+  _getOptionsForValue: function(value, options) {
     var result = fuzzy.filter(value, options).map(function(res) {
       return res.string;
     });
 
+    this._parseValues(result);
+  },
+
+  _parseValues: function(result) {
     if (this.props.maxVisible) {
       result = result.slice(0, this.props.maxVisible);
     }
-    return result;
+
+    this.setState({
+      visible: result
+    });
   },
 
   setEntryText: function(value) {
@@ -95,17 +109,28 @@ var Typeahead = React.createClass({
     var nEntry = this.refs.entry.getDOMNode();
     nEntry.focus();
     nEntry.value = option;
-    this.setState({visible: this.getOptionsForValue(option, this.state.options),
-                   selection: option,
-                   entryValue: option});
+
+    this.getOptionsForValue(option, this.state.options);
+
+    this
+      .setState({
+        selection: option,
+        entryValue: option
+      });
+
     return this.props.onOptionSelected(option, event);
   },
 
   _onTextEntryUpdated: function() {
     var value = this.refs.entry.getDOMNode().value;
-    this.setState({visible: this.getOptionsForValue(value, this.state.options),
-                   selection: null,
-                   entryValue: value});
+
+    this.getOptionsForValue(value, this.state.options);
+
+    this
+      .setState({
+        selection: null,
+        entryValue: value
+      });
   },
 
   _onEnter: function(event) {
