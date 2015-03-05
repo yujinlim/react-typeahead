@@ -50,6 +50,16 @@ Type: React Component
 
 Basic typeahead input and results list.
 
+#### props.getOptionsForValue
+Type: `Function`
+Default: noop
+Parameters: 
+- `query`    user's insert query values
+- `options`  options from props
+- `cb`       callback to call if success with `Array` of string to present
+
+An async function to call when user's start searching
+
 #### props.options
 
 Type: `Array`
